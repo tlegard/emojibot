@@ -1,0 +1,22 @@
+{
+  "name": "puppybot",
+  "version": "0.0.1",
+  "description": "A simple bot",
+  "main": "Gruntfile.js",
+  "devDependencies": {
+    "irc": "~0.3.6",
+    "grunt": "~0.4.1",
+    "grunt-contrib-coffee": "~0.7.0",
+    "grunt-contrib-watch": "~0.4.4",
+    "underscore-contrib": "~0.1.4",
+    "nedb": "~0.8.4"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kaw2k/IRC-Post-Bot.git"
+  },
+  "author": "Kevin Welcher",
+  "license": "BSD",
+  "readmeFilename": "README.md",
+  "gitHead": "a8e8e68de7be916fe8e98f2e155c5a5ff70c95ff"
+}
