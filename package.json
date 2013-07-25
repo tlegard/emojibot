@@ -1,7 +1,7 @@
 {
-  "name": "puppybot",
-  "version": "0.0.1",
-  "description": "A simple bot",
+  "name": "emojibot",
+  "version": "0.1.0",
+  "description": "A simple 💾",
   "main": "Gruntfile.js",
   "devDependencies": {
     "irc": "~0.3.6",
@@ -9,14 +9,13 @@
     "grunt-contrib-coffee": "~0.7.0",
     "grunt-contrib-watch": "~0.4.4",
     "underscore-contrib": "~0.1.4",
-    "nedb": "~0.8.4"
+    "jsdom": "~0.8.1"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/kaw2k/IRC-Post-Bot.git"
+    "url": "https://github.com/tlegard/emoji-bot.git"
   },
-  "author": "Kevin Welcher",
+  "author": "Tucker Legard",
   "license": "BSD",
   "readmeFilename": "README.md",
-  "gitHead": "a8e8e68de7be916fe8e98f2e155c5a5ff70c95ff"
 }
