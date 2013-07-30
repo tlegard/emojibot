@@ -36,17 +36,17 @@ bot.addListener 'raw', (message) ->
 trueCode = (str, i) => 
 	code = str.charCodeAt(i)
 	if 0xD800 <= code && code <= 0xDBFF
-    	hi = code;
-    	low = str.charCodeAt i+1
-    	if isNaN low 
-    		return console.log "Not sure how you typed that character..."
-		
+		hi = code;
+		low = str.charCodeAt i+1
+		if isNaN low 
+			return console.log "Not sure how you typed that character..."
+
 		# black magic
 		code = ((hi - 0xD800) * 0x400) + (low - 0xDC00) + 0x10000
 
-    if 0xDC00 <= code && code <= 0xDFFF
-    	return	false; # already handled low
-    return code;
+	if 0xDC00 <= code && code <= 0xDFFF
+		return	false; # already handled low
+	return code;
 
 # A factory of sorts, essentially closes the unicode into the async function. The
 # async function then wraps the request call so that it can be called in series,
@@ -64,6 +64,15 @@ createRequest = (code) =>
 			return callback null, {description: description, image: image}
 	)
 	
+fetchGit = (emoji) => 
+	(callback) => (
+		console.log emoji
+		request "http://www.emoji-cheat-sheet.com/graphics/emojis/#{emoji}.png", (err, res, html) ->
+			if err or res.statusCode is 404 
+				return callback null, undefined
+			return callback null, {description: "http://www.emoji-cheat-sheet.com/graphics/emojis/#{emoji}.png"}
+	)
+	
 # The workhouse method of this bot. It reads each character, determines if it's an emoji, 
 # and creates a request to shapecatcher for more details. Finally it runs the requests 
 # in series, concat'ing the results in the order they were made.
@@ -74,18 +83,26 @@ translateEmoji = (text, channel, drawMode) =>
 	if (text.indexOf "emojibot") == 0
 		drawMode = true
 	
+	# check for github emojis 
+	gitMojis = (text.match /:(\w+):/g) || [];
+	for match in gitMojis 
+		funcs.push fetchGit match.replace /:/g, ''
+	
+	# check for unicode emojis 
 	for i in [0..text.length]
 		code = trueCode text, i
 
 		# code is considered an emoji, pictograph, transport, or alchemical symbol
 		if code >= 0x1F300 && code <= 0x1F77F
-			funcs.push createRequest code
-	
+			funcs.push createRequest code 
+ 	
+	# apply all requests 
 	async.series funcs, (err, res) => 
 		message = _.reduce(res, (str, emoji) =>
-			str += "[#{emoji.description}"
-			if drawMode
-				str += " #{emoji.image}"
-			str += "]"
+			if emoji
+				str += "[ #{emoji.description} "
+				if drawMode and emoji.image
+					str += "#{emoji.image} "
+				str += "]"
 		, '' );
 		bot.say channel, message
