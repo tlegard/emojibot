@@ -10,18 +10,22 @@ async		= require 'async'
 bot = new irc.Client settings.server, settings.botName, settings
 console.log "#{settings.botName} connecting to #{settings.server} #{settings.channels} ..."
 
-# If a private message is sent, check if we are required to join a channel
+# If a private message is sent, check if we are required to join or part a channel
 bot.addListener 'pm', (from, to, message) ->
-	if join = message.args[1].match(/join\s+(#?\w+)/)
+	text = message.args[1]
+	if join = text.match(/join\s+(#?\w+)/)
 		if join[1] != '#' then join[1] = '#' + join[1]
 		bot.join join[1]
 
-	if part = message.args[1].match(/part\s+(#?\w+)/)
+	if part = text.match(/part\s+(#?\w+)/)
 		if part[1] != '#' then part[1] = '#' + part[1]
 		bot.part part[1]
 		
-	translateEmoji message.args[1], from
-	
+	translateEmoji text, from
+
+# Event listener for all IRC actions, currently we are just checking if it either
+# an actiion (/me) or regular message in channel. Both are encapsulated by the 
+# 'PRIVMSG' command. 
 bot.addListener 'raw', (message) -> 
 	if message.command is 'PRIVMSG' and message.args and message.args.length >= 2
 		translateEmoji message.args[1], message.args[0]
@@ -38,7 +42,7 @@ trueCode = (str, i) =>
     		return console.log "Not sure how you typed that character..."
 		
 		# black magic
-    	code = ((hi - 0xD800) * 0x400) + (low - 0xDC00) + 0x10000
+		code = ((hi - 0xD800) * 0x400) + (low - 0xDC00) + 0x10000
 
     if 0xDC00 <= code && code <= 0xDFFF
     	return	false; # already handled low
@@ -60,9 +64,9 @@ createRequest = (code) =>
 			return callback null, {description: description, image: image}
 	)
 	
-# Translate emoji is the workhouse method of this bot, reads each character, determines if 
-# it's an emoji, and sends off a request to shapecatcher for more details. Finally runs
-# the requests in series, concat'ing the results in order
+# The workhouse method of this bot. It reads each character, determines if it's an emoji, 
+# and creates a request to shapecatcher for more details. Finally it runs the requests 
+# in series, concat'ing the results in the order they were made.
 translateEmoji = (text, channel, drawMode) =>
 	drawMode = false
 	funcs = []
