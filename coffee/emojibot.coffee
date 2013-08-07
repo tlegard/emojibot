@@ -2,7 +2,7 @@
 irc = require 'irc'
 settings = require '../settings'
 _ = require 'underscore-contrib'
-$ = require 'cheerio'
+cheerio = require 'cheerio'
 request	= require 'request'
 async = require 'async'
 
@@ -30,7 +30,7 @@ bot.addListener 'pm', (from, to, message) ->
 bot.addListener 'ping', (server) ->
     follow()
 	
-# Whenever you join the server also stalk your clients, because you're like that, emojibot.
+# Whenever you join the server also stalk your clients, because you're like that emojibot.
 bot.addListener 'registered', (server) ->
     follow()
 
@@ -39,7 +39,6 @@ bot.addListener 'registered', (server) ->
 follow = () -> 
 	for nick in clients 
 		bot.whois nick, (info) ->
-			console.log info
 			return unless info.channels
 			for channel in info.channels
 				# strip out their mod status
@@ -49,7 +48,7 @@ follow = () ->
 				   bot.join channel
 
 # Event listener for all IRC actions, currently we are just checking if it either
-# an actiion (/me) or regular message in channel. Both are encapsulated by the 
+# an action (/me) or regular message in channel. Both are encapsulated by the 
 # 'PRIVMSG' command. 
 bot.addListener 'raw', (message) -> 
 	if message.command is 'PRIVMSG' and message.args and message.args.length >= 2
@@ -69,8 +68,7 @@ trueCode = (str, i) =>
 		# black magic
 		code = ((hi - 0xD800) * 0x400) + (low - 0xDC00) + 0x10000
 
-	if 0xDC00 <= code && code <= 0xDFFF
-		return	false; # already handled low
+	return false if 0xDC00 <= code && code <= 0xDFFF
 	return code;
 
 # A factory of sorts, essentially closes the unicode into the async function. The
@@ -78,47 +76,43 @@ trueCode = (str, i) =>
 fetchUnicode = (code) => 
 	(callback) =>  # async function signature
 		request "http://shapecatcher.com/unicode_info/#{code}.html", (err, res, html) ->
-			if err or res.statusCode is 404
-				return callback null, undefined
-			parsedHTML = $.load(html)
-			image = "http://shapecatcher.com" + parsedHTML('article img').attr('src')
+			return callback null, undefined if err or res.statusCode is 404
+			
+			$ = cheerio.load(html)
+			image = "http://shapecatcher.com" + $('article img').attr('src')
 
-			$text = parsedHTML('article').children().remove();
-			description = parsedHTML('article').text().trim().split('\n')[0].split(':')[1].trim()
+			# ajax monands for the win!
+			description$('article').children().remove().text().trim().split('\n')[0].split(':')[1].trim()
+			
 			return callback null, {description: description, image: image}
 	
 # The same sort of factory, but this time responsible for returning the image if it exisits
 fetchGit = (emoji) => 
-	emoji = encodeURIComponent emoji # +1 TO %2B1
+	emoji = encodeURIComponent emoji 
 	(callback) => 
 		request "http://www.emoji-cheat-sheet.com/graphics/emojis/#{emoji}.png", (err, res, html) ->
-			if err or res.statusCode is 404 
-				return callback null, undefined
+			return callback null, undefined if err or res.statusCode is 404 
+				
 			return callback null, {description: "http://www.emoji-cheat-sheet.com/graphics/emojis/#{emoji}.png"}
 	
 	
 # The workhouse method of this bot. It reads each character, determines if it's an emoji, 
 # and creates a request to shapecatcher for more details. Finally it runs the requests 
 # in series, concat'ing the results in the order they were made.
-translateEmoji = (text, channel, drawMode) =>
-	drawMode = false
+translateEmoji = (text, channel) =>
+	drawMode = (text.indexOf "emojibot" == 0)
 	funcs = []
 	
-	if (text.indexOf "emojibot") == 0
-		drawMode = true
-	
-	# check for github emojis 
+	# check for github emojis in the form :smile: 
 	gitMojis = (text.match /:[+-]?(\w+):/g) || [];
-	for match in gitMojis 
-		funcs.push fetchGit match.replace /:/g, ''
+	funcs.push fetchGit match.slice(1, -1) for match in gitMojis 
 	
 	# check for unicode emojis in text
 	for i in [0..text.length]
 		code = trueCode text, i
 
 		# code is considered an emoji, pictograph, transport, or alchemical symbol
-		if code >= 0x1F300 && code <= 0x1F77F
-			funcs.push fetchUnicode code 
+		funcs.push fetchUnicode code if code >= 0x1F300 && code <= 0x1F77F
  	
 	# apply all requests 
 	async.series funcs, (err, res) => 
