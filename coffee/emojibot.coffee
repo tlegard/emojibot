@@ -77,7 +77,7 @@ translateEmoji = (text, channel) =>
 	
 	# check for github emojis in the form :smile: 
 	gitMojis = translator.parseGitmojis text
-	funcs.push translator.fetchGit match.slice(1, -1) for match in gitMojis 
+	funcs.push translator.fetchGit match.slice 1, -1 for match in gitMojis 
 	
 	# check for unicode emojis in text
 	emojis  = translator.parseEmojis text
@@ -86,14 +86,12 @@ translateEmoji = (text, channel) =>
 	# apply all requests 
 	async.series funcs, (err, res) => 
 		stringify = (str, emoji) =>
-			if emoji
-				str += "["
-				if drawMode && emoji.image
-					str += " #{emoji.image} "
-				else 
-					str += " #{emoji.description} " 
-				str += "]"
-
+			return str unless emoji
+			
+			str += "[ " + (if drawMode and emoji.image 
+			then "#{emoji.image}"
+			else "#{emoji.description}") + " ]"
+				
 		message = fold stringify, '', res
 		
 		bot.say channel, message
