@@ -1,6 +1,6 @@
 {
   "name": "emojibot",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "A simple 💾",
   "main": "Gruntfile.js",
   "devDependencies": {
@@ -8,10 +8,10 @@
     "grunt": "~0.4.1",
     "grunt-contrib-coffee": "~0.7.0",
     "grunt-contrib-watch": "~0.4.4",
-    "underscore-contrib": "~0.1.4",
-	"cheerio": "~0.12.0",
-	"request": "~2.25.0",
-	"async": "0.2.9"
+    "cheerio": "~0.12.0",
+    "request": "~2.25.0",
+    "async": "0.2.9",
+    "prelude-ls": "~1.0.3"
   },
   "repository": {
     "type": "git",
