@@ -29,8 +29,9 @@ exports.trueCode = trueCode = (str, i) =>
 #
 # It's a little clunky because aysnc requires you to always return the result of 
 # callback. 
-exports.fetchUnicode = fetchUnicode = (code) => 
+exports.fetchUnicode = fetchUnicode = (code, cache) => 
 	(callback) =>  # async function signature
+		return callback null, cache[code] if cache[code] 
 		request "http://shapecatcher.com/unicode_info/#{code}.html", (err, res, html) ->
 			return callback null, undefined if err or res.statusCode is 404
 			
@@ -40,18 +41,21 @@ exports.fetchUnicode = fetchUnicode = (code) =>
 			$('article').children().remove()
 			description = $('article').text().trim().split('\n')[0].split(':')[1].trim()
 			
-			return callback null, {description: description, image: image}
+			cache[code] = {description: description, image: image}
+			return callback null, cache[code]
 
 # The same sort of factory, but this time responsible for returning the image 
 # if it exists
-exports.fetchGit = fetchGit = (emoji) => 
+exports.fetchGit = fetchGit = (emoji, cache) => 
 	emoji = encodeURIComponent emoji 
+
 	(callback) => 
+		return callback null, cache[emoji] if cache[emoji]
 		image = "http://www.emoji-cheat-sheet.com/graphics/emojis/#{emoji}.png"
 		request image, (err, res, html) ->
 			return callback null,  
 			if err or res.statusCode is 404 then undefined else 
-				{description: image}
+				cache[emoji] = {description: image}
 
 # given a string message, return an array of integer codes for each emoji 
 exports.parseEmojis = parseEmojis = (text) ->
@@ -64,4 +68,4 @@ exports.parseEmojis = parseEmojis = (text) ->
 
 # given a string message, return an array of all :emojis: 
 exports.parseGitmojis = parseGitmojis = (text) -> 
-return (text.match /:[+-]?(\w+):/g) or [];
+	return (text.match /:[+-]?(\w+):/g) or [];

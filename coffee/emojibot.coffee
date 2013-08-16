@@ -1,6 +1,6 @@
 irc = require 'irc'
 settings = require '../settings'
-{fold} = require 'prelude-ls'
+{fold, intersection} = require 'prelude-ls'
 translator = require './translator'
 async = require 'async'
 
@@ -8,8 +8,11 @@ async = require 'async'
 bot = new irc.Client settings.server, settings.botName, settings
 console.log "#{settings.botName} connecting to #{settings.server} #{settings.channels} ..."
 
-clients = ['tucker', 'kevinwelcher']
-channels = settings.channels
+cache = {}
+
+clients = ['kevinwelcher', 'tucker']
+_channelWho = {}
+channels = []
  
 #==============================================================================#
 #  IRC Event Bindings
@@ -31,21 +34,36 @@ bot.addListener 'pm', (from, to, message) ->
 
 # Emojibot hates to be alone, so when he joins he check to see where all his 
 # clients are and jumps in their channel
-bot.addListener 'registered', (server) ->
-    follow()
+bot.addListener 'registered', (server) -> follow()
 
 # Emojibot also has abadadonment issues, so he'll periodically check where his 
 # clients are and join them 
-bot.addListener 'ping', (server) ->
-    follow()
-	
+bot.addListener 'ping', (server) -> follow()
+
+# Watches if his clients leave so he can leave too 
+bot.addListener 'part', (channel, nick, reason, message) -> 
+  bot.send "WHO", channel
+
+# Watches for when his client quits so he can quit too
+bot.addListener 'quit', (nick, reason, channels, message) ->
+	if nick in clients
+	  bot.send "WHO", channel for channel in channels 
+
 # Event listener for all IRC actions. Currently we are only using this to handle
 # an action (/me), but we've constructed the check to handle a regular message 
 # as well.  
 bot.addListener 'raw', (message) -> 
 	if message.command is 'PRIVMSG' and message.args and message.args.length >= 2
 		translateEmoji message.args[1], message.args[0]
-   
+
+	if message.command is 'rpl_whoreply'
+		_addWhoData message.args[1], message.args[5]
+
+	if message.command is 'rpl_endofwho'
+		data = _clearWhoData message.args[1]
+		console.log intersection data, clients 
+		bot.part message.args[1] if !(intersection data, clients).length 
+
 # Emojibot is so strong, he never breaks but if he does he'll let us 
 # know and try to keep going 
 bot.addListener 'error', (message) -> console.log 'error: ', message
@@ -70,19 +88,19 @@ follow = () ->
 
 # Essentially emojibot is a sham and offloads all of the translation of on
 # the translator module. He even gets it to package up the async requests for
-# him;I hope this isn't taxing on their relationship...
+# him; I hope this isn't taxing on their relationship...
 translateEmoji = (text, channel) =>
 	funcs = []
 	drawMode = (text.indexOf "emojibot") is 0
 	
 	# check for github emojis in the form :smile: 
 	gitMojis = translator.parseGitmojis text
-	funcs.push translator.fetchGit match.slice 1, -1 for match in gitMojis 
+	funcs.push translator.fetchGit (match.slice 1, -1), cache for match in gitMojis 
 	
 	# check for unicode emojis in text
 	emojis  = translator.parseEmojis text
-	funcs.push translator.fetchUnicode emoji for emoji in emojis
- 	
+	funcs.push translator.fetchUnicode emoji, cache for emoji in emojis
+	
 	# apply all requests 
 	async.series funcs, (err, res) => 
 		stringify = (str, emoji) =>
@@ -95,3 +113,17 @@ translateEmoji = (text, channel) =>
 		message = fold stringify, '', res
 		
 		bot.say channel, message
+
+#==============================================================================#
+#  Private Mutatotors 
+#    - Try not to use too much... the reason I use this over a promise is it 
+#      mimics the Node IRC implementation of /WHOIS
+#==============================================================================#
+_addWhoData = (channel, nick) ->
+	_channelWho[channel] = [] if (!_channelWho[channel])
+	_channelWho[channel].push nick
+
+_clearWhoData = (channel) -> 
+	data = _channelWho[channel] || []
+	delete _channelWho[channel]
+	return data
